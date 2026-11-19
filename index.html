@@ -436,6 +436,7 @@ const gmapsSearch=(name,district)=>'https://www.google.com/maps/search/?api=1&qu
 function safeMap(u){ if(typeof u!=='string') return ''; u=u.trim(); return /^https:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(u)?u:''; }
 function coverStyle(tr){ const ph=safeImg((tr.photos||[])[0]); if(ph) return `background-image:url('${ph.replace(/'/g,'%27')}')`; const c=COVERS[(tr.vibes||[])[0]]||['#005439','#9cc98a']; return `background-image:linear-gradient(135deg,${c[0]},${c[1]})`; }
 function accText(tr){ const n=(tr.up_votes||0)+(tr.down_votes||0); if(!n) return t('accNone'); return t('acc', Math.round(100*(tr.up_votes||0)/n), n); }
+function errText(e){ if(!e) return ''; const parts=[e.code,e.message||String(e),e.hint].filter(Boolean); return parts.join(' · ').slice(0,300); }
 function toast(msg){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2600); }
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
 function resizeImage(file, max=1280, q=0.75){
@@ -490,7 +491,7 @@ const store = LIVE ? LiveStore : DemoStore;
 
 async function loadTrips(){
   try{ state.trips = await store.listTrips(); state.loadError=false; }
-  catch(e){ console.error(e); state.loadError=true; }
+  catch(e){ console.error(e); state.loadError=true; state.loadErrMsg=errText(e); }
   state.loaded=true;
 }
 
@@ -576,7 +577,7 @@ function renderHome(){
 function renderList(){
   const el=$('#list'); if(!el) return;
   if(!state.loaded){ el.innerHTML=`<div class="loading">…</div>`; return; }
-  if(state.loadError){ el.innerHTML=`<div class="empty">${t('loadErr')}</div>`; return; }
+  if(state.loadError){ el.innerHTML=`<div class="empty">${t('loadErr')}${state.loadErrMsg?`<div class="muted" style="margin-top:8px;font-family:monospace;font-size:13px">${esc(state.loadErrMsg)}</div>`:''}</div>`; return; }
   const list=filtered();
   el.innerHTML = list.length
     ? `<div class="count">${t('found',list.length)}</div><div class="grid">${list.map(card).join('')}</div>`
@@ -840,7 +841,7 @@ function renderShare(){
       const id=await store.createTrip(p,phone,files);
       lsSet('ghuri_me',{name:p.author_name,phone}); lsSet('ghuri_name',p.author_name);
       await loadTrips(); toast(t('published')); location.hash='trip-'+id;
-    }catch(ex){ console.error(ex); err.textContent=t('errSave'); btn.disabled=false; btn.textContent=t('publish'); }
+    }catch(ex){ console.error(ex); err.textContent=t('errSave')+(LIVE?' ('+errText(ex)+')':''); btn.disabled=false; btn.textContent=t('publish'); }
   });
 }
 
@@ -858,7 +859,7 @@ $('#langBtn').addEventListener('click',()=>{ state.lang=state.lang==='bn'?'en':'
 
 (async function init(){
   applyStatic(); route();
-  try{ if(LIVE) await LiveStore.init(); }catch(e){ console.error(e); state.loadError=true; state.loaded=true; route(); return; }
+  try{ if(LIVE) await LiveStore.init(); }catch(e){ console.error(e); state.loadError=true; state.loadErrMsg='Could not load the Supabase library from cdn.jsdelivr.net'; state.loaded=true; route(); return; }
   await loadTrips(); route();
 })();
 </script>
