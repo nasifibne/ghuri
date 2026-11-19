@@ -89,6 +89,17 @@ create policy "add reports" on public.reports
   for insert with check (char_length(reason) between 1 and 300);
 
 -- ---------------------------------------------------------------------
+-- Table permissions for the website (newer Supabase projects need these).
+-- The website may read trips and comments, add comments and reports.
+-- It gets NO access to trip_contacts (phone numbers, private map links).
+-- ---------------------------------------------------------------------
+grant usage on schema public to anon, authenticated;
+grant select on public.trips to anon, authenticated;
+grant select, insert on public.comments to anon, authenticated;
+grant insert on public.reports to anon, authenticated;
+revoke all on public.trip_contacts from anon, authenticated;
+
+-- ---------------------------------------------------------------------
 -- create_trip: the only way to add a trip. Saves the phone privately and
 -- recalculates the cost totals on the server so they can't be faked.
 -- ---------------------------------------------------------------------
